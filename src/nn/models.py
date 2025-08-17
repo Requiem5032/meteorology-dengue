@@ -40,7 +40,6 @@ class DengueNN():
         for epoch in progress_bar:
             self.optimizer.zero_grad()
             outputs = self.model(self.cumulative_cases[0])
-
             t_original = torch.arange(
                 0, len(self.cumulative_cases), step=1, dtype=torch.float32)
             t_eval = torch.arange(
@@ -49,18 +48,20 @@ class DengueNN():
             def scale_output(val, bounds):
                 if isinstance(bounds, list) and len(bounds) == 2:
                     min_val, max_val = bounds
-                    # Scale output (assume val in [0,1] due to sigmoid)
                     return min_val + (max_val - min_val) * val
                 else:
-                    # No scaling if no bounds
                     return val
 
             to_learn_param_keys = list(self.to_learn_params.keys())
             to_learn_param_dict = {}
+
             for i, k in enumerate(to_learn_param_keys):
                 bounds = self.to_learn_params[k]
                 val = outputs[i]
                 to_learn_param_dict[k] = scale_output(val, bounds)
+
+            # for i, k in enumerate(to_learn_param_keys):
+            #     to_learn_param_dict[k] = outputs[i]
 
             param_dict = {**to_learn_param_dict, **self.true_params}
 
@@ -78,18 +79,21 @@ class DengueNN():
                 rainfall_arr=self.rainfall_data,
                 param_dict=param_dict,
             )
-            loss = self.criterion(
-                solution.t()[0][1:], self.cumulative_cases[1:].squeeze())
 
-            loss.backward()
+            loss = self.criterion(
+                solution.t()[0][1:],
+                self.cumulative_cases[1:].squeeze(),
+            )
+
+            with torch.autograd.set_detect_anomaly(True):
+                loss.backward()
             self.optimizer.step()
+
             progress_bar.set_description(
                 f"Epoch {epoch+1}/{epochs} | Loss: {loss.item():.4f}")
             loss_history.append(loss.item())
-            # Optionally, print details for debugging
             print(f'Solution: {solution.t()[0][1:]}')
-            # print(f'True cases: {self.cumulative_cases[1:].squeeze()}')
-            # print(f'Epoch loss: {loss.item()}')
+            print(f'Output: {outputs}')
 
         return loss_history
 
@@ -98,15 +102,14 @@ class NeuralNetwork(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim, hidden_num):
         super().__init__()
         self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
-        self.fc3 = nn.Linear(hidden_dim, output_dim)
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
         self.hidden_activation = nn.ReLU()
         self.final_activation = nn.Sigmoid()
 
         hidden_layers = []
         for _ in range(hidden_num):
-            hidden_layers.append(self.fc2)
-            hidden_layers.append(self.hidden_activation)
+            hidden_layers.append(nn.Linear(hidden_dim, hidden_dim))
+            hidden_layers.append(nn.ReLU())
         self.linears = nn.ModuleList(hidden_layers)
 
     def forward(self, x):
@@ -114,7 +117,7 @@ class NeuralNetwork(nn.Module):
         x = self.hidden_activation(x)
         for layer in self.linears:
             x = layer(x)
-        x = self.fc3(x)
+        x = self.fc2(x)
         x = self.final_activation(x)
         return x
 
@@ -122,4 +125,4 @@ class NeuralNetwork(nn.Module):
 def init_weight(m):
     if isinstance(m, nn.Linear):
         nn.init.kaiming_uniform_(m.weight, mode='fan_in', nonlinearity='relu')
-        nn.init.constant_(m.bias, 0.01)
+        nn.init.constant_(m.bias, 0)
