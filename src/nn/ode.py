@@ -1,6 +1,6 @@
 import torch
 from torchdiffeq import odeint
-from src.ode.math import torch_interp
+from src.nn.math import torch_interp
 
 AQUATIC_STATE = ['E', 'L', 'P']
 
@@ -18,11 +18,11 @@ def get_solution(t_eval, t_original, y0, temperature_arr, rainfall_arr, param_di
         y0=y0,
         t=t_eval,
         method='dopri5',
-        options={'min_step': 1e-6}
+        options={
+            'min_step': 1e-8,
+        }
     )
 
-    solution = torch.nan_to_num(solution)
-    solution = torch.clamp(solution, min=0.0, max=1e8)
     return solution
 
 
@@ -32,7 +32,7 @@ def dengue_ode_system(t, y, t_original, temperature_arr, rainfall_arr, param_dic
     meteorology_vars_dict = compute_meteorology_vars(current_temperature, current_rainfall, param_dict)
     _, E, L, P, M_s, M_e, M_i, H_s, H_e, H_i, H_r = y
 
-    C = param_dict['C']
+    C = torch.clamp(param_dict['C'], min=1e-8)
     sigma = param_dict['sigma']
     beta_M = param_dict['beta_M']
     theta_M = param_dict['theta_M']
@@ -43,8 +43,8 @@ def dengue_ode_system(t, y, t_original, temperature_arr, rainfall_arr, param_dic
 
     M = M_s + M_e + M_i
     H = H_s + H_e + H_i + H_r
-    H = torch.clamp(H, min=1)
-    M = torch.clamp(M, min=1)
+    H = torch.clamp(H, min=1e-8)
+    M = torch.clamp(M, min=1e-8)
     H_i_frac = H_i / H
     M_i_frac = M_i / M
 
@@ -87,8 +87,9 @@ def dengue_ode_system(t, y, t_original, temperature_arr, rainfall_arr, param_dic
         dHr_dt.squeeze(),
     ])
 
-    dy_dt = torch.nan_to_num(dy_dt)
-    dy_dt = torch.clamp(dy_dt, min=0.0, max=1e8)
+    if torch.isnan(dy_dt).any() or torch.isinf(dy_dt).any():
+        raise ValueError("dy_dt contains NaN or Inf values")
+
     return dy_dt
 
 
@@ -102,10 +103,6 @@ def compute_meteorology_vars(temperature, rainfall, param_dict):
     for j in AQUATIC_STATE:
         meteorology_vars_dict[f'F_{j}'] = param_dict[f'alpha_{j}'] * temperature_funcs_dict[f'g_{j}'] * rainfall_funcs_dict[f'h_{j}']
         meteorology_vars_dict[f'mu_{j}'] = temperature_funcs_dict[f'p_{j}'] * rainfall_funcs_dict[f'q_{j}']
-
-    for k, v in meteorology_vars_dict.items():
-        meteorology_vars_dict[k] = torch.nan_to_num(v)
-        meteorology_vars_dict[k] = torch.clamp(v, min=0.0, max=1e8)
 
     return meteorology_vars_dict
 
@@ -142,10 +139,6 @@ def compute_temperature_funcs(temperature, param_dict):
         temperature_funcs_dict[f'g_{j}'] = g_j(j)
         temperature_funcs_dict[f'p_{j}'] = p_j(j)
 
-    for k, v in temperature_funcs_dict.items():
-        temperature_funcs_dict[k] = torch.nan_to_num(v)
-        temperature_funcs_dict[k] = torch.clamp(v, min=0.0, max=1e8)
-
     return temperature_funcs_dict
 
 
@@ -177,9 +170,5 @@ def compute_rainfall_funcs(rainfall, param_dict):
     for j in AQUATIC_STATE:
         rainfall_funcs_dict[f'h_{j}'] = h_j(j)
         rainfall_funcs_dict[f'q_{j}'] = q_j(j)
-
-    for k, v in rainfall_funcs_dict.items():
-        rainfall_funcs_dict[k] = torch.nan_to_num(v)
-        rainfall_funcs_dict[k] = torch.clamp(v, min=0.0, max=1e8)
 
     return rainfall_funcs_dict
