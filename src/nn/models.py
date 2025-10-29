@@ -16,6 +16,7 @@ class DengueNN():
     def __init__(
         self,
         device,
+        location,
         data_csv_path,
         params_yaml_path,
         lr,
@@ -24,6 +25,7 @@ class DengueNN():
         hidden_num,
     ):
         self.device = device
+        self.location = location
         self.param_dict = extract_params(params_yaml_path)
         self.learnable_params = get_learnable_params(self.param_dict)
         self.cumulative_cases = extract_cumulative_cases(
@@ -135,7 +137,7 @@ class DengueNN():
                 for key, value in self.param_dict.items():
                     best_param_dict[key] = float(value.detach().clone().numpy())
 
-        with open('data/params/bello/best_params.yaml', 'w') as f:
+        with open(f'results/{self.location}/best_params.yaml', 'w') as f:
             yaml.dump(best_param_dict, f)
         print(f'Best Loss: {best_loss:.4f}')
         return loss_history, best_solution
