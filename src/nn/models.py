@@ -138,7 +138,7 @@ class DengueNN():
                     best_param_dict[key] = float(value.detach().clone().numpy())
 
         with open(f'results/{self.location}/best_params.yaml', 'w') as f:
-            yaml.dump(best_param_dict, f)
+            yaml.safe_dump(best_param_dict, f, sort_keys=False)
         print(f'Best Loss: {best_loss:.4f}')
         return loss_history, best_solution
 

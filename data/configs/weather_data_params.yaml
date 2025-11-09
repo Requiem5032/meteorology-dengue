@@ -1,0 +1,50 @@
+location:
+  bello:
+    latitude: 6.3333
+    longitude: -75.5667
+  iquitos:
+    latitude: -3.7491
+    longitude: -73.2538
+  sanjuan:
+    latitude: 18.4663
+    longitude: -66.1057
+  vietnam:
+    latitude: 16.1667
+    longitude: 107.8333
+  philippines:
+    latitude: 13.4088
+    longitude: 122.5615
+  cambodia:
+    latitude: 13
+    longitude: 105
+data_split:
+  calibration:
+    start_date:
+      bello: '2014-02-17'
+      iquitos: '2005-02-07'
+      sanjuan: '2000-12-18'
+      vietnam: '2017-02-27'
+      philippines: '2013-02-25'
+      cambodia: '2013-01-28'
+    end_date:
+      bello: '2015-01-18'
+      iquitos: '2006-01-08'
+      sanjuan: '2001-11-18'
+      vietnam: '2018-01-28'
+      philippines: '2014-01-26'
+      cambodia: '2013-12-29'
+  projection:
+    start_date:
+      bello: '2006-08-07'
+      iquitos: '2001-11-19'
+      sanjuan: '1998-12-21'
+      vietnam: '2018-04-16'
+      philippines: '2015-03-23'
+      cambodia: '2011-02-28'
+    end_date:
+      bello: '2007-07-08'
+      iquitos: '2002-10-20'
+      sanjuan: '1999-11-21'
+      vietnam: '2019-03-17'
+      philippines: '2016-02-21'
+      cambodia: '2012-01-29'
