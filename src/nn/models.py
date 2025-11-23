@@ -4,19 +4,13 @@ import torch.nn as nn
 
 from tqdm.notebook import tqdm
 from src.nn.ode import get_solution
-from src.utils.data import (
-    extract_params,
-    get_learnable_params,
-    extract_cumulative_cases,
-    extract_temperature_rainfall,
-)
+from src.utils import *
 
 
 class DengueNN():
     def __init__(
         self,
         device,
-        location,
         data_csv_path,
         params_yaml_path,
         lr,
@@ -25,7 +19,6 @@ class DengueNN():
         hidden_num,
     ):
         self.device = device
-        self.location = location
         self.param_dict = extract_params(params_yaml_path)
         self.learnable_params = get_learnable_params(self.param_dict)
         self.cumulative_cases = extract_cumulative_cases(
@@ -57,7 +50,7 @@ class DengueNN():
             steps_per_epoch=1,
         )
 
-    def train(self):
+    def train(self, result_dir):
         self.model.train()
         data = self.cumulative_cases[0]
 
@@ -137,7 +130,7 @@ class DengueNN():
                 for key, value in self.param_dict.items():
                     best_param_dict[key] = float(value.detach().clone().numpy())
 
-        with open(f'results/{self.location}/best_params.yaml', 'w') as f:
+        with open(f'{result_dir}/best_params.yaml', 'w') as f:
             yaml.safe_dump(best_param_dict, f, sort_keys=False)
         print(f'Best Loss: {best_loss:.4f}')
         return loss_history, best_solution
