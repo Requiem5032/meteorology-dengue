@@ -1,1 +1,1 @@
-from ._data import *
+from .data import *

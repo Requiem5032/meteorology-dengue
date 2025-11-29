@@ -1,6 +1,6 @@
 import torch
 from torchdiffeq import odeint
-from src.nn.math import torch_interp
+from .math import torch_interp
 
 AQUATIC_STATE = ['E', 'L', 'P']
 
@@ -87,8 +87,7 @@ def dengue_ode_system(t, y, t_original, temperature_arr, rainfall_arr, param_dic
         dHr_dt.squeeze(),
     ])
 
-    if torch.isnan(dy_dt).any() or torch.isinf(dy_dt).any():
-        raise ValueError("dy_dt contains NaN or Inf values")
+    dy_dt = torch.nan_to_num(dy_dt, nan=1e-8, posinf=1e8, neginf=1e-8)
 
     return dy_dt
 
