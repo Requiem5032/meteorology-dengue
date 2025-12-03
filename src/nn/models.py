@@ -108,7 +108,7 @@ def init_weight(m):
         nn.init.constant_(m.bias, 0)
 
 
-def train(sema, dengue_model, seed, result_dir):
+def train(sema, dengue_model, seed, result_dir, figure_dir):
     with sema:
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore')
@@ -231,31 +231,46 @@ def train(sema, dengue_model, seed, result_dir):
             ax1_fig2.grid(True)
 
             fig3, ax1_fig3 = plt.subplots()
-            ax1_fig3.plot(loss_history, label='Training Loss')
+            ax1_fig3.plot(loss_history, label='Calibration Loss')
             ax1_fig3.set_xlabel('Epoch')
             ax1_fig3.set_ylabel('Loss')
-            ax1_fig3.set_title('Training Loss History')
+            ax1_fig3.set_title('Calibration Loss History')
+            ax1_fig3.text(
+                0.5, -0.2, f'Best Loss: {best_loss:.4f}', transform=ax1_fig3.transAxes, ha='center')
             ax1_fig3.legend()
             ax1_fig3.grid(True)
 
             # Save results
             with open(f'{result_dir}/best_params.yaml', 'w') as f:
                 yaml.safe_dump(best_param_dict, f, sort_keys=False)
+            with open(f'{result_dir}/loss_result.yaml', 'w') as f:
+                yaml.safe_dump(
+                    {
+                        'best_loss': float(best_loss),
+                        'best_epoch': int(best_epoch),
+                        'final_loss': float(loss_history[-1]),
+                        'normalized_loss': float(loss_normalized),
+                        'unnormalized_loss': float(loss_unnormalized),
+                    },
+                    f,
+                    sort_keys=False,
+                )
 
             dengue_nn.param_df.to_csv(
                 f'{result_dir}/param_history.csv', index=False)
 
             fig1.savefig(
-                f'{result_dir}/calibration_normalized_cases.png',
+                f'{figure_dir}/calibration_normalized_cases.png',
                 bbox_inches='tight',
             )
             fig2.savefig(
-                f'{result_dir}/calibration_cumulative_cases.png',
+                f'{figure_dir}/calibration_cumulative_cases.png',
                 bbox_inches='tight',
             )
             fig3.savefig(
-                f'{result_dir}/calibration_loss.png',
+                f'{figure_dir}/calibration_loss.png',
                 bbox_inches='tight',
             )
 
-            print(f'Best loss: {best_loss:.4f} at epoch {best_epoch}', flush=True)
+            print(
+                f'Best loss: {best_loss:.4f} at epoch {best_epoch}', flush=True)
