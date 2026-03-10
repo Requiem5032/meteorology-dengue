@@ -1,4 +1,4 @@
-name: dengue
+name: ode
 channels:
   - defaults
 dependencies:
@@ -124,6 +124,7 @@ dependencies:
       - triton==3.4.0
       - typing-extensions==4.15.0
       - tzdata==2025.2
+      - mlflow
       - url-normalize==2.2.1
       - urllib3==2.5.0
       - urllib3-future==2.14.905

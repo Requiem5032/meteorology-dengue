@@ -1,5 +1,5 @@
-best_loss: 0.02999616414308548
-best_epoch: 420
-final_loss: 0.03927940875291824
-normalized_loss: 0.029371244832873344
-unnormalized_loss: 35805948.0
+best_loss: 0.03449995815753937
+best_epoch: 52
+final_loss: 0.07313156872987747
+normalized_loss: 0.033781204372644424
+unnormalized_loss: 145604720.0

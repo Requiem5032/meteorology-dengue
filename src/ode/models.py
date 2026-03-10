@@ -1,6 +1,6 @@
 import torch
 from torchdiffeq import odeint
-from .math import torch_interp
+from src.utils import *
 
 AQUATIC_STATE = ['E', 'L', 'P']
 
@@ -29,7 +29,8 @@ def get_solution(t_eval, t_original, y0, temperature_arr, rainfall_arr, param_di
 def dengue_ode_system(t, y, t_original, temperature_arr, rainfall_arr, param_dict):
     current_temperature = torch_interp(t, t_original, temperature_arr)
     current_rainfall = torch_interp(t, t_original, rainfall_arr)
-    meteorology_vars_dict = compute_meteorology_vars(current_temperature, current_rainfall, param_dict)
+    meteorology_vars_dict = compute_meteorology_vars(
+        current_temperature, current_rainfall, param_dict)
     _, E, L, P, M_s, M_e, M_i, H_s, H_e, H_i, H_r = y
 
     C = torch.clamp(param_dict['C'], min=1e-8)
@@ -49,11 +50,16 @@ def dengue_ode_system(t, y, t_original, temperature_arr, rainfall_arr, param_dic
     M_i_frac = M_i / M
 
     dHit_dt = theta_H * H_e
-    dE_dt = meteorology_vars_dict['b'] * (1 - E / C) * M - (meteorology_vars_dict['F_E'] + meteorology_vars_dict['mu_E']) * E
-    dL_dt = meteorology_vars_dict['F_E'] * E - (meteorology_vars_dict['F_L'] + meteorology_vars_dict['mu_L']) * L
-    dP_dt = meteorology_vars_dict['F_L'] * L - (meteorology_vars_dict['F_P'] + meteorology_vars_dict['mu_P']) * P
-    dMs_dt = sigma * meteorology_vars_dict['F_P'] * P - beta_M * H_i_frac * M_s - meteorology_vars_dict['mu_M'] * M_s
-    dMe_dt = beta_M * H_i_frac * M_s - (theta_M + meteorology_vars_dict['mu_M']) * M_e
+    dE_dt = meteorology_vars_dict['b'] * (1 - E / C) * M - (
+        meteorology_vars_dict['F_E'] + meteorology_vars_dict['mu_E']) * E
+    dL_dt = meteorology_vars_dict['F_E'] * E - \
+        (meteorology_vars_dict['F_L'] + meteorology_vars_dict['mu_L']) * L
+    dP_dt = meteorology_vars_dict['F_L'] * L - \
+        (meteorology_vars_dict['F_P'] + meteorology_vars_dict['mu_P']) * P
+    dMs_dt = sigma * meteorology_vars_dict['F_P'] * P - beta_M * \
+        H_i_frac * M_s - meteorology_vars_dict['mu_M'] * M_s
+    dMe_dt = beta_M * H_i_frac * M_s - \
+        (theta_M + meteorology_vars_dict['mu_M']) * M_e
     dMi_dt = theta_M * M_e - meteorology_vars_dict['mu_M'] * M_i
     dHs_dt = mu_H * H - beta_H * M_i_frac * H_s - mu_H * H_s
     dHe_dt = beta_H * M_i_frac * H_s - (theta_H + mu_H) * H_e
@@ -97,11 +103,14 @@ def compute_meteorology_vars(temperature, rainfall, param_dict):
     temperature_funcs_dict = compute_temperature_funcs(temperature, param_dict)
     rainfall_funcs_dict = compute_rainfall_funcs(rainfall, param_dict)
     meteorology_vars_dict['mu_M'] = temperature_funcs_dict['mu_M']
-    meteorology_vars_dict['b'] = param_dict['alpha_b'] * temperature_funcs_dict['u_b'] * rainfall_funcs_dict['v_b']
+    meteorology_vars_dict['b'] = param_dict['alpha_b'] * \
+        temperature_funcs_dict['u_b'] * rainfall_funcs_dict['v_b']
 
     for j in AQUATIC_STATE:
-        meteorology_vars_dict[f'F_{j}'] = param_dict[f'alpha_{j}'] * temperature_funcs_dict[f'g_{j}'] * rainfall_funcs_dict[f'h_{j}']
-        meteorology_vars_dict[f'mu_{j}'] = temperature_funcs_dict[f'p_{j}'] * rainfall_funcs_dict[f'q_{j}']
+        meteorology_vars_dict[f'F_{j}'] = param_dict[f'alpha_{j}'] * \
+            temperature_funcs_dict[f'g_{j}'] * rainfall_funcs_dict[f'h_{j}']
+        meteorology_vars_dict[f'mu_{j}'] = temperature_funcs_dict[f'p_{j}'] * \
+            rainfall_funcs_dict[f'q_{j}']
 
     return meteorology_vars_dict
 
