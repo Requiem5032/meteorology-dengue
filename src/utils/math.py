@@ -1,18 +1,30 @@
 import torch
 
 
-def torch_interp(t_eval, t, y):
-    t_eval = t_eval.float()
-    t = t.float()
-    y = y.float()
+def interp1d(x, xp, fp):
+    idx = torch.searchsorted(xp, x) - 1
+    idx = idx.clamp(0, len(xp) - 2)
 
-    t_eval_clamped = torch.clamp(t_eval, t[0], t[-1])
+    x0 = xp[idx]
+    x1 = xp[idx + 1]
+    y0 = fp[idx]
+    y1 = fp[idx + 1]
 
-    idxs = torch.searchsorted(t, t_eval_clamped, right=True)
-    idxs = torch.clamp(idxs, 1, t.numel() - 1)
-    x0 = t[idxs - 1]
-    x1 = t[idxs]
-    y0 = y[idxs - 1]
-    y1 = y[idxs]
-    slope = (y1 - y0) / (x1 - x0)
-    return y0 + slope * (t_eval_clamped - x0)
+    t = (x - x0) / (x1 - x0)
+    return y0 + t * (y1 - y0)
+
+
+def smooth_safe_divide(numerator, denominator, eps=1e-6):
+    numerator_tensor = torch.as_tensor(numerator)
+    denominator_tensor = torch.as_tensor(
+        denominator,
+        dtype=numerator_tensor.dtype,
+        device=numerator_tensor.device,
+    )
+    eps_tensor = torch.as_tensor(
+        eps,
+        dtype=denominator_tensor.dtype,
+        device=denominator_tensor.device,
+    )
+    scale = torch.hypot(denominator_tensor, eps_tensor)
+    return (numerator_tensor / scale) * (denominator_tensor / scale)

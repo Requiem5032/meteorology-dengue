@@ -1,15 +1,21 @@
+import yaml
 import argparse
-import cProfile
 import multiprocessing as mp
+
+import cProfile
 import mlflow
 
-from src.nn import *
-from src.utils import *
+from src.mlcore import (
+    train_wrapper,
+    tune_wrapper,
+    load_tuned_params,
+)
 from src.config import MLFLOW_TRACKING_URI
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Dengue NN calibration / tuning runner.')
+    parser = argparse.ArgumentParser(
+        description='Dengue NN calibration / tuning runner.')
     parser.add_argument(
         '--tune',
         action='store_true',
@@ -33,6 +39,23 @@ if __name__ == '__main__':
         default=None,
         help='Restrict tuning/calibration to a single location.',
     )
+    parser.add_argument(
+        '--calibration-epochs',
+        type=int,
+        default=500,
+        help='Training epochs for calibration runs (calibration mode only).',
+    )
+    parser.add_argument(
+        '--num-workers',
+        type=int,
+        default=1,
+        help='Number of worker processes for tuning/calibration. Defaults to 1. Use 1 for serial.',
+    )
+    parser.add_argument(
+        '--use-default-hyperparams',
+        action='store_true',
+        help='Disable loading tuned hyperparameters and use built-in defaults.',
+    )
     args = parser.parse_args()
 
     pr = cProfile.Profile()
@@ -48,20 +71,35 @@ if __name__ == '__main__':
 
     if args.tune:
         print(f'Running hyperparameter tuning for: {location_list}')
-        for location in location_list:
-            tune(
-                location=location,
-                device=device,
-                epochs=args.tune_epochs,
-                n_trials=args.n_trials,
-                mlflow_tracking_uri=MLFLOW_TRACKING_URI,
-                mlflow_experiment='dengue_nn_tuning',
-            )
+        tune_tasks = [
+            (location, device, args.tune_epochs, args.n_trials)
+            for location in location_list
+        ]
+
+        num_workers = max(1, args.num_workers)
+
+        print(
+            f'Running tuning with {num_workers} worker(s) across {len(tune_tasks)} location(s).', flush=True)
+
+        if num_workers == 1:
+            for task in tune_tasks:
+                tune_wrapper(task)
+                print(
+                    f'Completed tuning for location: {task[0]}',
+                    flush=True,
+                )
+        else:
+            ctx = mp.get_context('spawn')
+            with ctx.Pool(processes=num_workers) as pool:
+                async_results = [pool.apply_async(
+                    tune_wrapper, args=(task,)) for task in tune_tasks]
+                pool.close()
+                pool.join()
+                for res in async_results:
+                    res.get()
     else:
-        random_seed = [0, 1, 42, 1234, 1337, 9173, 6164, 5956, 7443, 1354]
-        # random_seed = [42]
-        num_processes = 6
-        print(f'Running calibration using {num_processes} processes.')
+        random_seed = [1, 2, 42, 1234, 1337, 9173, 6164, 5956, 7443, 1354]
+        # random_seed = [0]
 
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         print(f'MLflow tracking URI: {MLFLOW_TRACKING_URI}')
@@ -70,6 +108,13 @@ if __name__ == '__main__':
         # Load tuned hyperparameters for each location (falls back to defaults if absent)
         location_hyperparams = {}
         for location in location_list:
+            if args.use_default_hyperparams:
+                location_hyperparams[location] = {}
+                print(
+                    f'Using default hyperparameters for {location} (tuned hyperparameters disabled).'
+                )
+                continue
+
             params = load_tuned_params(
                 location,
                 mlflow_tracking_uri=MLFLOW_TRACKING_URI,
@@ -81,15 +126,30 @@ if __name__ == '__main__':
             else:
                 print(f'No tuned params found for {location}, using defaults.')
 
-        tasks = [(seed, location, device, location_hyperparams[location])
+        tasks = [(seed, location, device, location_hyperparams[location], args.calibration_epochs)
                  for seed in random_seed for location in location_list]
 
-        pool = mp.Pool(processes=num_processes)
-        try:
-            results = pool.map(train_wrapper, tasks)
-        finally:
-            pool.close()
-            pool.join()
+        num_workers = max(1, args.num_workers)
+
+        print(
+            f'Running calibration with {num_workers} worker(s) across {len(tasks)} task(s).', flush=True)
+
+        if num_workers == 1:
+            for task in tasks:
+                train_wrapper(task)
+                print(
+                    f'Completed calibration for location: {task[1]} with seed: {task[0]}',
+                    flush=True,
+                )
+        else:
+            ctx = mp.get_context('spawn')
+            with ctx.Pool(processes=num_workers) as pool:
+                async_results = [pool.apply_async(
+                    train_wrapper, args=(task,)) for task in tasks]
+                pool.close()
+                pool.join()
+                for res in async_results:
+                    res.get()
 
     print('Finished', flush=True)
 

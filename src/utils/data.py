@@ -5,7 +5,7 @@ import torch
 import datetime
 import pandas as pd
 
-TIME_DELTA = 335
+_TIME_DELTA = 335
 
 
 def convert_date_to_iso(date_str):
@@ -30,12 +30,12 @@ def get_isoweek_date(year, week):
     return start, end
 
 
-def get_date_after_delta(date_iso, delta=TIME_DELTA):
+def get_date_after_delta(date_iso, delta=_TIME_DELTA):
     new_date = date_iso + datetime.timedelta(days=delta)
     return new_date
 
 
-def extract_params(yaml_path):
+def extract_params_yaml(yaml_path):
     with open(yaml_path, 'r') as f:
         params_dict = yaml.safe_load(f)
     params_dict = convert_to_tensor(params_dict)
@@ -80,6 +80,12 @@ def extract_temperature_rainfall(csv_path):
     rainfall = torch.tensor(df['rain_sum'].values,
                             dtype=torch.float32).unsqueeze(-1)
     return temperature, rainfall
+
+
+def scale_output(output, lower_bound=0.0, upper_bound=1.0):
+    scale = upper_bound - lower_bound
+    output = output * scale + lower_bound
+    return output
 
 
 def create_dir(dir_path):
